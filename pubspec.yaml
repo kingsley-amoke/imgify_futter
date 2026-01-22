@@ -1,9 +1,9 @@
-name: imagify
+name: imgify
 description: A mobile app for image processing - convert, resize, and compress images
 
 publish_to: "none"
 
-version: 1.0.0+1
+version: 1.0.0+3
 
 environment:
   sdk: ">=3.0.0 <4.0.0"

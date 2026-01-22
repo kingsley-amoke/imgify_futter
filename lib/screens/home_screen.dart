@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:imagify/widgets/my_appbar.dart';
+import 'package:imgify/widgets/my_appbar.dart';
 import 'convert_screen.dart';
 import 'resize_screen.dart';
 import 'compress_screen.dart';

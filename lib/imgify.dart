@@ -1,6 +1,6 @@
 import 'package:device_preview/device_preview.dart';
 import 'package:flutter/material.dart';
-import 'package:imagify/screens/home_screen.dart';
+import 'package:imgify/screens/home_screen.dart';
 
 class Imgify extends StatelessWidget {
   const Imgify({super.key});

@@ -2,12 +2,11 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-// import 'package:gallery_saver/gallery_saver.dart';
-import 'package:imagify/data/api_service.dart';
-import 'package:imagify/widgets/error_message.dart';
-import 'package:imagify/widgets/galler_saver.dart';
-import 'package:imagify/widgets/my_appbar.dart';
-import 'package:imagify/widgets/success_message.dart';
+import 'package:imgify/data/api_service.dart';
+import 'package:imgify/widgets/error_message.dart';
+import 'package:imgify/widgets/galler_saver.dart';
+import 'package:imgify/widgets/my_appbar.dart';
+import 'package:imgify/widgets/success_message.dart';
 import 'package:path_provider/path_provider.dart';
 
 class ResizeScreen extends StatefulWidget {

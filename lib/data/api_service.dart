@@ -1,7 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
-import 'package:imagify/constants/external_links.dart';
+import 'package:imgify/constants/external_links.dart';
+import 'package:http/http.dart' as http;
 
 class ApiService {
   final Dio _dio = Dio();
@@ -13,6 +14,7 @@ class ApiService {
   }
 
   Future<Uint8List> convertImage(File image, String format) async {
+
     try {
       String fileName = image.path.split('/').last;
       FormData formData = FormData.fromMap({
@@ -21,14 +23,15 @@ class ApiService {
       });
 
       final response = await _dio.post(
-        '/convert',
+        '${ExternalLinks.baseUrl}/convert',
         data: formData,
         options: Options(responseType: ResponseType.bytes),
       );
 
       return Uint8List.fromList(response.data);
     } catch (e) {
-      throw Exception('Failed to convert image: $e');
+print(e);
+      throw Exception('Failed to convert image');
     }
   }
 
@@ -48,14 +51,14 @@ class ApiService {
       });
 
       final response = await _dio.post(
-        '/resize',
+        '${ExternalLinks.baseUrl}/resize',
         data: formData,
         options: Options(responseType: ResponseType.bytes),
       );
 
       return Uint8List.fromList(response.data);
     } catch (e) {
-      throw Exception('Failed to resize image: $e');
+      throw Exception('Failed to resize image');
     }
   }
 
@@ -73,15 +76,15 @@ class ApiService {
       });
 
       final response = await _dio.post(
-        '/compress',
+        '${ExternalLinks.baseUrl}/compress',
         data: formData,
         options: Options(responseType: ResponseType.bytes),
       );
 
       return Uint8List.fromList(response.data);
     } catch (e) {
-      print(e);
-      throw Exception('Failed to compress image: $e');
+
+      throw Exception('Failed to compress image');
     }
   }
 }
