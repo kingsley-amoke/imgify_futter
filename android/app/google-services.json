@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "100924810151",
+    "project_id": "imgify-5fd0d",
+    "storage_bucket": "imgify-5fd0d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:100924810151:android:f72591563e9aa25305cc82",
+        "android_client_info": {
+          "package_name": "com.smoqdev.imgify"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCv9oWcDegzVhzoxhWrza9nKOZ6-H1tbYk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

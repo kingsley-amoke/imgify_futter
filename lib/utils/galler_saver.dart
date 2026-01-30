@@ -35,17 +35,17 @@ bool isLocalFilePath(String path) {
 
 bool isVideo(String path) {
   bool output = false;
-  videoFormats.forEach((videoFormat) {
+  for (var videoFormat in videoFormats) {
     if (path.toLowerCase().contains(videoFormat)) output = true;
-  });
+  }
   return output;
 }
 
 bool isImage(String path) {
   bool output = false;
-  imageFormats.forEach((imageFormat) {
+  for (var imageFormat in imageFormats) {
     if (path.toLowerCase().contains(imageFormat)) output = true;
-  });
+  }
   return output;
 }
 
@@ -119,19 +119,16 @@ class GallerySaver {
 
   static Future<File> _downloadFile(String url,
       {Map<String, String>? headers}) async {
-    print(url);
-    print(headers);
-    http.Client _client = new http.Client();
-    var req = await _client.get(Uri.parse(url), headers: headers);
+    http.Client client = http.Client();
+    var req = await client.get(Uri.parse(url), headers: headers);
     if (req.statusCode >= 400) {
       throw HttpException(req.statusCode.toString());
     }
     var bytes = req.bodyBytes;
     String dir = (await getTemporaryDirectory()).path;
-    File file = new File('$dir/${basename(url)}');
+    File file = File('$dir/${basename(url)}');
     await file.writeAsBytes(bytes);
-    print('File size:${await file.length()}');
-    print(file.path);
+
     return file;
   }
 }

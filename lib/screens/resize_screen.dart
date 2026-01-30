@@ -2,10 +2,17 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:imgify/constants/aspect_ratios.dart';
 import 'package:imgify/data/api_service.dart';
+import 'package:imgify/models/aspect_ratio.dart';
+import 'package:imgify/utils/save_image.dart';
+import 'package:imgify/utils/share_image.dart';
 import 'package:imgify/widgets/error_message.dart';
-import 'package:imgify/widgets/galler_saver.dart';
+import 'package:imgify/widgets/image_actions.dart';
+import 'package:imgify/widgets/image_preview.dart';
+import 'package:imgify/widgets/input_decoration.dart';
 import 'package:imgify/widgets/my_appbar.dart';
+import 'package:imgify/widgets/primary_button.dart';
 import 'package:imgify/widgets/success_message.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -25,7 +32,7 @@ class _ResizeScreenState extends State<ResizeScreen> {
   File? _selectedImage;
   Uint8List? _processedImage;
   bool _isProcessing = false;
-  bool _maintainAspectRatio = true;
+  MyAspectRatio? _selectedAspectRatio; // null means custom
 
   @override
   void dispose() {
@@ -48,6 +55,55 @@ class _ResizeScreenState extends State<ResizeScreen> {
     }
   }
 
+  void _applyAspectRatio(MyAspectRatio? aspectRatio) {
+    setState(() {
+      _selectedAspectRatio = aspectRatio;
+    });
+
+    if (aspectRatio == null) {
+      // Custom - user can enter any values
+      return;
+    }
+
+    // Apply aspect ratio based on existing width or height
+    final width = _widthController.text.isNotEmpty
+        ? int.tryParse(_widthController.text)
+        : null;
+    final height = _heightController.text.isNotEmpty
+        ? int.tryParse(_heightController.text)
+        : null;
+
+    if (width != null && width > 0) {
+      // Calculate height from width
+      final calculatedHeight = (width / aspectRatio.ratio).round();
+      _heightController.text = calculatedHeight.toString();
+    } else if (height != null && height > 0) {
+      // Calculate width from height
+      final calculatedWidth = (height * aspectRatio.ratio).round();
+      _widthController.text = calculatedWidth.toString();
+    } else {
+      // Set default dimensions (1000px width)
+      const defaultWidth = 1000;
+      final calculatedHeight = (defaultWidth / aspectRatio.ratio).round();
+      _widthController.text = defaultWidth.toString();
+      _heightController.text = calculatedHeight.toString();
+    }
+  }
+
+  void _onWidthChanged() {
+    // If aspect ratio is selected, auto-calculate height from width
+    if (_selectedAspectRatio != null) {
+      final width = _widthController.text.isNotEmpty
+          ? int.tryParse(_widthController.text)
+          : null;
+
+      if (width != null && width > 0) {
+        final calculatedHeight = (width / _selectedAspectRatio!.ratio).round();
+        _heightController.text = calculatedHeight.toString();
+      }
+    }
+  }
+
   Future<void> _resizeImage() async {
     if (_selectedImage == null) return;
 
@@ -63,6 +119,16 @@ class _ResizeScreenState extends State<ResizeScreen> {
       return;
     }
 
+    if (width != null && width <= 0) {
+      _showError('Width must be greater than 0');
+      return;
+    }
+
+    if (height != null && height <= 0) {
+      _showError('Height must be greater than 0');
+      return;
+    }
+
     setState(() {
       _isProcessing = true;
     });
@@ -72,7 +138,7 @@ class _ResizeScreenState extends State<ResizeScreen> {
         image: _selectedImage!,
         width: width,
         height: height,
-        maintainAspectRatio: _maintainAspectRatio,
+        maintainAspectRatio: false, // Always use exact dimensions
       );
       setState(() {
         _processedImage = result;
@@ -90,19 +156,36 @@ class _ResizeScreenState extends State<ResizeScreen> {
   Future<void> _saveImage() async {
     if (_processedImage == null) return;
 
+    //TODO:Add Interstitial Ad here before saving image
+
     try {
       final directory = await getTemporaryDirectory();
       final filePath =
           '${directory.path}/resized_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final file = File(filePath);
-      await file.writeAsBytes(_processedImage!);
-
-      final success = await GallerySaver.saveImage(filePath);
-      if (success ?? false) {
+      final success =
+          await saveImageToGallery(filePath: filePath, image: _processedImage!);
+      if (success) {
         _showSuccess('Image saved to gallery!');
       }
     } catch (e) {
       _showError('Failed to save image: $e');
+    }
+  }
+
+  Future<void> _shareImage() async {
+    if (_processedImage == null) return;
+
+    try {
+      final directory = await getTemporaryDirectory();
+      final filePath =
+          '${directory.path}/resized_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final success =
+          await shareImageToApps(filePath: filePath, image: _processedImage!);
+      if (success) {
+        _showSuccess('Image shared successfully!');
+      }
+    } catch (e) {
+      _showError('Failed to share image');
     }
   }
 
@@ -124,38 +207,59 @@ class _ResizeScreenState extends State<ResizeScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (_selectedImage != null)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'Original Image',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.file(
-                          _selectedImage!,
-                          height: 200,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              ImagePreview(
+                title: 'Original Image',
+                image: Image.file(_selectedImage!, fit: BoxFit.cover),
               ),
-            const SizedBox(height: 20),
-            Card(
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(20),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    const Text(
+                      'Aspect Ratio',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<MyAspectRatio?>(
+                      initialValue: _selectedAspectRatio,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
+                        hintText: 'Aspect ratio',
+                      ),
+                      items: [
+                        const DropdownMenuItem<MyAspectRatio?>(
+                          value: null,
+                          child: Text('Custom'),
+                        ),
+                        ...AspectRatioConstants.commonRatios.map((aspectRatio) {
+                          return DropdownMenuItem<MyAspectRatio?>(
+                            value: aspectRatio,
+                            child: Text(aspectRatio.name),
+                          );
+                        }),
+                      ],
+                      onChanged: (value) {
+                        _applyAspectRatio(value);
+                      },
+                    ),
+                    const SizedBox(height: 16),
                     const Text(
                       'Dimensions',
                       style: TextStyle(
@@ -170,10 +274,9 @@ class _ResizeScreenState extends State<ResizeScreen> {
                           child: TextField(
                             controller: _widthController,
                             keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'Width (px)',
-                              border: OutlineInputBorder(),
-                            ),
+                            decoration:
+                                dimensionInput(context, label: 'Width (px)'),
+                            onChanged: (_) => _onWidthChanged(),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -181,101 +284,88 @@ class _ResizeScreenState extends State<ResizeScreen> {
                           child: TextField(
                             controller: _heightController,
                             keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'Height (px)',
-                              border: OutlineInputBorder(),
+                            decoration: dimensionInput(
+                              context,
+                              label: 'Height (px)',
+                              suffix: _selectedAspectRatio != null
+                                  ? const Icon(Icons.lock, size: 18)
+                                  : null,
                             ),
+                            enabled: _selectedAspectRatio == null,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    SwitchListTile(
-                      title: const Text('Maintain aspect ratio'),
-                      value: _maintainAspectRatio,
-                      onChanged: (value) {
-                        setState(() {
-                          _maintainAspectRatio = value;
-                        });
-                      },
-                      contentPadding: EdgeInsets.zero,
-                    ),
+                    if (_selectedAspectRatio != null) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 16,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Height auto-calculated to maintain ${_selectedAspectRatio!.name} ratio',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 20),
             if (_selectedImage == null)
-              ElevatedButton.icon(
-                onPressed: _pickImage,
-                icon: const Icon(Icons.photo_library),
-                label: const Text('Pick Image'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.all(16),
-                ),
+              PrimaryButton(
+                onTap: _pickImage,
+                child: const Text('Pick Image',
+                    style: TextStyle(color: Colors.white)),
               )
             else
-              ElevatedButton.icon(
-                onPressed: _isProcessing ? null : _resizeImage,
-                icon: _isProcessing
+              PrimaryButton(
+                onTap: _isProcessing ? null : _resizeImage,
+                child: _isProcessing
                     ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
-                    : const Icon(Icons.photo_size_select_large),
-                label: Text(_isProcessing ? 'Resizing...' : 'Resize'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.all(16),
-                ),
+                    : const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.photo_size_select_large,
+                            color: Colors.white,
+                          ),
+                          SizedBox(width: 8),
+                          Text('Resize Image',
+                              style: TextStyle(color: Colors.white)),
+                        ],
+                      ),
               ),
             if (_processedImage != null) ...[
               const SizedBox(height: 20),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'Resized Image',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.memory(
-                          _processedImage!,
-                          height: 200,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _saveImage,
-                              icon: const Icon(Icons.save),
-                              label: const Text('Save'),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _pickImage,
-                              icon: const Icon(Icons.photo_library),
-                              label: const Text('New Image'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+              Center(
+                child: ImagePreview(
+                    title: 'Resized Image',
+                    image: Image.memory(_processedImage!)),
               ),
+              ImageActions(
+                onSave: _saveImage,
+                onPickNew: _pickImage,
+                onShare: _shareImage,
+              )
             ],
           ],
         ),

@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:imgify/constants/external_links.dart';
-import 'package:http/http.dart' as http;
 
 class ApiService {
   final Dio _dio = Dio();
@@ -14,7 +13,6 @@ class ApiService {
   }
 
   Future<Uint8List> convertImage(File image, String format) async {
-
     try {
       String fileName = image.path.split('/').last;
       FormData formData = FormData.fromMap({
@@ -30,7 +28,6 @@ class ApiService {
 
       return Uint8List.fromList(response.data);
     } catch (e) {
-print(e);
       throw Exception('Failed to convert image');
     }
   }
@@ -83,7 +80,6 @@ print(e);
 
       return Uint8List.fromList(response.data);
     } catch (e) {
-
       throw Exception('Failed to compress image');
     }
   }

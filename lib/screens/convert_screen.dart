@@ -3,9 +3,13 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:imgify/data/api_service.dart';
+import 'package:imgify/utils/save_image.dart';
+import 'package:imgify/utils/share_image.dart';
 import 'package:imgify/widgets/error_message.dart';
-import 'package:imgify/widgets/galler_saver.dart';
+import 'package:imgify/widgets/image_actions.dart';
+import 'package:imgify/widgets/image_preview.dart';
 import 'package:imgify/widgets/my_appbar.dart';
+import 'package:imgify/widgets/primary_button.dart';
 import 'package:imgify/widgets/success_message.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -67,19 +71,38 @@ class _ConvertScreenState extends State<ConvertScreen> {
   Future<void> _saveImage() async {
     if (_processedImage == null) return;
 
+    //TODO:Add Intersteritial Ad here before saving image
+
     try {
       final directory = await getTemporaryDirectory();
       final filePath =
           '${directory.path}/converted_${DateTime.now().millisecondsSinceEpoch}.$_selectedFormat';
-      final file = File(filePath);
-      await file.writeAsBytes(_processedImage!);
 
-      final success = await GallerySaver.saveImage(filePath);
-      if (success ?? false) {
+      final success =
+          await saveImageToGallery(filePath: filePath, image: _processedImage!);
+      if (success) {
         _showSuccess('Image saved to gallery!');
       }
     } catch (e) {
       _showError('Failed to save image: $e');
+    }
+  }
+
+  Future<void> _shareImage() async {
+    // TODO:Sharing functionality can be implemented here
+    if (_processedImage == null) return;
+    try {
+      final directory = await getTemporaryDirectory();
+      final filePath =
+          '${directory.path}/converted_${DateTime.now().millisecondsSinceEpoch}.$_selectedFormat';
+
+      final success =
+          await shareImageToApps(filePath: filePath, image: _processedImage!);
+      if (success) {
+        _showSuccess('Image shared successfully!');
+      }
+    } catch (e) {
+      _showError('Failed to share image: $e');
     }
   }
 
@@ -101,33 +124,15 @@ class _ConvertScreenState extends State<ConvertScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (_selectedImage != null)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'Original Image',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.file(
-                          _selectedImage!,
-                          height: 200,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              ImagePreview(
+                  title: 'Original Image', image: Image.file(_selectedImage!)),
             const SizedBox(height: 20),
-            Card(
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(20),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -142,11 +147,17 @@ class _ConvertScreenState extends State<ConvertScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: _selectedFormat,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      initialValue: _selectedFormat,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
+                        hintText: 'Output Format',
                       ),
                       items: _formats.map((format) {
                         return DropdownMenuItem(
@@ -166,75 +177,47 @@ class _ConvertScreenState extends State<ConvertScreen> {
             ),
             const SizedBox(height: 20),
             if (_selectedImage == null)
-              ElevatedButton.icon(
-                onPressed: _pickImage,
-                icon: const Icon(Icons.photo_library),
-                label: const Text('Pick Image'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.all(16),
-                ),
+              PrimaryButton(
+                onTap: _pickImage,
+                child: const Text('Pick Image',
+                    style: TextStyle(color: Colors.white)),
               )
             else
-              ElevatedButton.icon(
-                onPressed: _isProcessing ? null : _convertImage,
-                icon: _isProcessing
+              PrimaryButton(
+                onTap: _isProcessing ? null : _convertImage,
+                child: _isProcessing
                     ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
-                    : const Icon(Icons.swap_horiz),
-                label: Text(_isProcessing ? 'Converting...' : 'Convert'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.all(16),
-                ),
+                    : const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.swap_horiz,
+                            color: Colors.white,
+                          ),
+                          SizedBox(width: 8),
+                          Text('Convert Image',
+                              style: TextStyle(color: Colors.white)),
+                        ],
+                      ),
               ),
             if (_processedImage != null) ...[
               const SizedBox(height: 20),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'Converted Image',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.memory(
-                          _processedImage!,
-                          height: 200,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _saveImage,
-                              icon: const Icon(Icons.save),
-                              label: const Text('Save'),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _pickImage,
-                              icon: const Icon(Icons.photo_library),
-                              label: const Text('New Image'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+              Center(
+                child: ImagePreview(
+                    title: 'Converted Image',
+                    image: Image.memory(_processedImage!)),
+              ),
+              ImageActions(
+                onSave: _saveImage,
+                onPickNew: _pickImage,
+                onShare: _shareImage,
               ),
             ],
           ],

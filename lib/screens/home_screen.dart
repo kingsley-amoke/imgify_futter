@@ -11,79 +11,85 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: myAppbar(context,
-          title: 'IMAGIFY', centerTitle: true, showBackIcon: false),
+          title: 'IMGIFY', centerTitle: true, showBackIcon: false),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
         child: SingleChildScrollView(
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              Image.asset(
-                'assets/images/logo.png',
-                fit: BoxFit.contain,
-                height: 100,
+              Column(
+                children: [
+                  Image.asset(
+                    'assets/images/logo.png',
+                    fit: BoxFit.contain,
+                    height: 100,
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Convert, resize, and compress images easily',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Theme.of(context).colorScheme.secondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
-              const SizedBox(height: 20),
-              // const Text(
-              //   'Image Processing Tools',
-              //   style: TextStyle(
-              //     fontSize: 24,
-              //     fontWeight: FontWeight.bold,
-              //   ),
-              // ),
-              const SizedBox(height: 10),
-              const Text(
-                'Convert, resize, and compress images easily',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 40),
-              _buildFeatureCard(
-                context,
-                icon: Icons.swap_horiz,
-                title: 'Convert Format',
-                subtitle: 'Change image format (JPG, PNG, WebP, etc.)',
-                color: Colors.blue,
-                onTap: () {
-                  Navigator.push(
+              Column(
+                children: [
+                  const SizedBox(height: 24),
+                  _buildFeatureCard(
                     context,
-                    MaterialPageRoute(
-                        builder: (context) => const ConvertScreen()),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              _buildFeatureCard(
-                context,
-                icon: Icons.photo_size_select_large,
-                title: 'Resize Image',
-                subtitle: 'Change image dimensions',
-                color: Colors.green,
-                onTap: () {
-                  Navigator.push(
+                    icon: Icons.swap_horiz,
+                    title: 'Convert Format',
+                    subtitle: 'Change image format (JPG, PNG, WebP, etc.)',
+                    color: Colors.blue,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const ConvertScreen()),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  _buildFeatureCard(
                     context,
-                    MaterialPageRoute(
-                        builder: (context) => const ResizeScreen()),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              _buildFeatureCard(
-                context,
-                icon: Icons.compress,
-                title: 'Compress Image',
-                subtitle: 'Reduce file size while maintaining quality',
-                color: Colors.orange,
-                onTap: () {
-                  Navigator.push(
+                    icon: Icons.photo_size_select_large,
+                    title: 'Resize Image',
+                    subtitle: 'Change image dimensions',
+                    color: Colors.green,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const ResizeScreen()),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  _buildFeatureCard(
                     context,
-                    MaterialPageRoute(
-                        builder: (context) => const CompressScreen()),
-                  );
-                },
+                    icon: Icons.compress,
+                    title: 'Compress Image',
+                    subtitle: 'Reduce file size while maintaining quality',
+                    color: Colors.orange,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const CompressScreen()),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              const Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  //TODO: Banner Ad Here
+                ],
               ),
             ],
           ),
@@ -135,18 +141,18 @@ class HomeScreen extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
-                        color: Colors.grey,
+                        color: Theme.of(context).colorScheme.secondary,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(
+              Icon(
                 Icons.arrow_forward_ios,
                 size: 20,
-                color: Colors.grey,
+                color: Theme.of(context).colorScheme.secondary,
               ),
             ],
           ),

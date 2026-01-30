@@ -12,5 +12,6 @@ SnackBar successMessageSnackBar(String message) {
     backgroundColor: const Color(0xFF16A34A), // professional green
     behavior: SnackBarBehavior.floating,
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    duration: const Duration(seconds: 2),
   );
 }

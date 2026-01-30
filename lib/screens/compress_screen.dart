@@ -3,9 +3,13 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:imgify/data/api_service.dart';
+import 'package:imgify/utils/save_image.dart';
+import 'package:imgify/utils/share_image.dart';
 import 'package:imgify/widgets/error_message.dart';
-import 'package:imgify/widgets/galler_saver.dart';
+import 'package:imgify/widgets/image_actions.dart';
+import 'package:imgify/widgets/image_preview.dart';
 import 'package:imgify/widgets/my_appbar.dart';
+import 'package:imgify/widgets/primary_button.dart';
 import 'package:imgify/widgets/success_message.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -73,20 +77,35 @@ class _CompressScreenState extends State<CompressScreen> {
 
   Future<void> _saveImage() async {
     if (_processedImage == null) return;
+//TODO:Add Intersteritial Ad here before saving image
+    try {
+      final directory = await getTemporaryDirectory();
+      final filePath =
+          '${directory.path}/compressed_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final success =
+          await saveImageToGallery(filePath: filePath, image: _processedImage!);
+      if (success) {
+        _showSuccess('Image saved to gallery!');
+      }
+    } catch (e) {
+      _showError('Failed to save image');
+    }
+  }
+
+  Future<void> _shareImage() async {
+    if (_processedImage == null) return;
 
     try {
       final directory = await getTemporaryDirectory();
       final filePath =
           '${directory.path}/compressed_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final file = File(filePath);
-      await file.writeAsBytes(_processedImage!);
-
-      final success = await GallerySaver.saveImage(filePath);
-      if (success ?? false) {
-        _showSuccess('Image saved to gallery!');
+      final success =
+          await shareImageToApps(filePath: filePath, image: _processedImage!);
+      if (success) {
+        _showSuccess('Image shared successfully!');
       }
     } catch (e) {
-      _showError('Failed to save image');
+      _showError('Failed to share image');
     }
   }
 
@@ -119,40 +138,28 @@ class _CompressScreenState extends State<CompressScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (_selectedImage != null)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'Original Image',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.file(
-                          _selectedImage!,
-                          height: 200,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      if (_originalSize != null) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          'Size: ${_formatBytes(_originalSize!)}',
-                          style: const TextStyle(color: Colors.grey),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
+              ImagePreview(
+                title: 'Original Image',
+                image: Image.file(_selectedImage!),
               ),
             const SizedBox(height: 20),
-            Card(
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                _formatBytes(_originalSize ?? 0),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(20),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -199,112 +206,87 @@ class _CompressScreenState extends State<CompressScreen> {
             ),
             const SizedBox(height: 20),
             if (_selectedImage == null)
-              ElevatedButton.icon(
-                onPressed: _pickImage,
-                icon: const Icon(Icons.photo_library),
-                label: const Text('Pick Image'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.all(16),
+              PrimaryButton(
+                onTap: _pickImage,
+                child: const Text(
+                  'Pick Image',
+                  style: TextStyle(
+                    color: Colors.white,
+                  ),
                 ),
               )
             else
-              ElevatedButton.icon(
-                onPressed: _isProcessing ? null : _compressImage,
-                icon: _isProcessing
+              PrimaryButton(
+                onTap: _isProcessing ? null : _compressImage,
+                child: _isProcessing
                     ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
-                    : const Icon(Icons.compress),
-                label: Text(_isProcessing ? 'Compressing...' : 'Compress'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.all(16),
-                ),
+                    : const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.compress_outlined,
+                            color: Colors.white,
+                          ),
+                          SizedBox(width: 8),
+                          Text('Compress Image',
+                              style: TextStyle(color: Colors.white)),
+                        ],
+                      ),
               ),
             if (_processedImage != null) ...[
               const SizedBox(height: 20),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
+              ImagePreview(
+                  title: 'Compressed Image',
+                  image: Image.memory(_processedImage!)),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  Column(
                     children: [
                       const Text(
-                        'Compressed Image',
-                        style: TextStyle(
-                          fontSize: 16,
+                        'New Size',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      Text(
+                        _formatBytes(_compressedSize!),
+                        style: const TextStyle(
                           fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.memory(
-                          _processedImage!,
-                          height: 200,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          Column(
-                            children: [
-                              const Text(
-                                'New Size',
-                                style: TextStyle(color: Colors.grey),
-                              ),
-                              Text(
-                                _formatBytes(_compressedSize!),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Column(
-                            children: [
-                              const Text(
-                                'Reduced',
-                                style: TextStyle(color: Colors.grey),
-                              ),
-                              Text(
-                                '${_getCompressionRatio().toStringAsFixed(1)}%',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: Colors.green,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _saveImage,
-                              icon: const Icon(Icons.save),
-                              label: const Text('Save'),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _pickImage,
-                              icon: const Icon(Icons.photo_library),
-                              label: const Text('New Image'),
-                            ),
-                          ),
-                        ],
                       ),
                     ],
                   ),
-                ),
+                  Column(
+                    children: [
+                      const Text(
+                        'Reduced',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      Text(
+                        '${_getCompressionRatio().toStringAsFixed(1)}%',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.green,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ImageActions(
+                onSave: _saveImage,
+                onPickNew: _pickImage,
+                onShare: _shareImage,
               ),
             ],
           ],
