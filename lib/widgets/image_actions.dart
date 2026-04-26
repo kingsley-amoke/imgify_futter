@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:imgify/widgets/image_action_icon.dart';
 
 class ImageActions extends StatelessWidget {
   final VoidCallback onSave;
@@ -31,27 +32,23 @@ class ImageActions extends StatelessWidget {
       ),
       child: Row(
         mainAxisSize: MainAxisSize.max,
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              ActionIcon(
-                icon: Icons.download_outlined,
-                onTap: onSave,
-                color: Colors.green,
-              ),
-              if (onShare != null) ...[
-                _divider(),
-                ActionIcon(
-                  icon: Icons.share_outlined,
-                  onTap: onShare!,
-                  color: Colors.blue,
-                ),
-              ],
-            ],
+          ImageActionIcon(
+            icon: Icons.download_outlined,
+            onTap: onSave,
+            color: Colors.green,
           ),
+          if (onShare != null) ...[
+            _divider(),
+            ImageActionIcon(
+              icon: Icons.share_outlined,
+              onTap: onShare!,
+              color: Colors.blue,
+            ),
+          ],
           _divider(),
-          ActionIcon(
+          ImageActionIcon(
             icon: Icons.refresh_rounded,
             onTap: onPickNew,
             color: Colors.orangeAccent,
@@ -65,34 +62,4 @@ class ImageActions extends StatelessWidget {
         padding: EdgeInsets.symmetric(horizontal: 8),
         child: SizedBox(width: 1, height: 24),
       );
-}
-
-class ActionIcon extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  Color? color;
-
-  ActionIcon({super.key, required this.icon, required this.onTap, this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return InkResponse(
-      radius: 28,
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: color ?? colorScheme.surfaceContainerHighest,
-          shape: BoxShape.circle,
-        ),
-        child: Icon(
-          icon,
-          size: 22,
-          color: color != null ? Colors.white : colorScheme.onSurfaceVariant,
-        ),
-      ),
-    );
-  }
 }

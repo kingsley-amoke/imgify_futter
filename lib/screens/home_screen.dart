@@ -1,27 +1,68 @@
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:imgify/providers/pro_status_provider.dart';
+import 'package:imgify/screens/settings.dart';
+import 'package:imgify/services/ad_service.dart';
+import 'package:imgify/widgets/connectivity_banner.dart';
 import 'package:imgify/widgets/my_appbar.dart';
+import 'package:provider/provider.dart';
 import 'convert_screen.dart';
 import 'resize_screen.dart';
 import 'compress_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final AdMobService _adMobService = AdMobService();
+  BannerAd? _bannerAd;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeAds();
+  }
+
+  void _initializeAds() {
+    final status = context.read<ProStatusProvider>();
+    if (!status.isPro) {
+      _bannerAd = _adMobService.createBannerAd();
+      _adMobService.loadInterstitialAd();
+    }
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: myAppbar(context,
-          title: 'IMGIFY', centerTitle: true, showBackIcon: false),
+      appBar: myAppbar(
+        context,
+        title: 'IMGIFY',
+        centerTitle: true,
+        showBackIcon: false,
+
+      ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
         child: SingleChildScrollView(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
+
               Column(
+
                 children: [
                   Image.asset(
-                    'assets/images/logo.png',
+                    'assets/images/icon.png',
                     fit: BoxFit.contain,
                     height: 100,
                   ),
@@ -38,36 +79,7 @@ class HomeScreen extends StatelessWidget {
               ),
               Column(
                 children: [
-                  const SizedBox(height: 24),
-                  _buildFeatureCard(
-                    context,
-                    icon: Icons.swap_horiz,
-                    title: 'Convert Format',
-                    subtitle: 'Change image format (JPG, PNG, WebP, etc.)',
-                    color: Colors.blue,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const ConvertScreen()),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  _buildFeatureCard(
-                    context,
-                    icon: Icons.photo_size_select_large,
-                    title: 'Resize Image',
-                    subtitle: 'Change image dimensions',
-                    color: Colors.green,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const ResizeScreen()),
-                      );
-                    },
-                  ),
+
                   const SizedBox(height: 16),
                   _buildFeatureCard(
                     context,
@@ -83,12 +95,59 @@ class HomeScreen extends StatelessWidget {
                       );
                     },
                   ),
+                  const SizedBox(height: 24),
+                  _buildFeatureCard(
+                    context,
+                    icon: Icons.photo_size_select_large,
+                    title: 'Resize Image',
+                    subtitle: 'Change image dimensions',
+                    color: Colors.green,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const ResizeScreen()),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  _buildFeatureCard(
+                    context,
+                    icon: Icons.swap_horiz,
+                    title: 'Convert Format',
+                    subtitle: 'Change image format (JPG, PNG, WebP, etc.)',
+                    color: Colors.blue,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const ConvertScreen()),
+                      );
+                    },
+                  ),
+
+
                 ],
               ),
-              const Column(
+              const SizedBox(height: 24),
+              Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  //TODO: Banner Ad Here
+                  //Banner Ad Here
+                  Consumer<ProStatusProvider>(
+                    builder: (context, status, child) {
+                      if (status.isPro || _bannerAd == null) {
+                        return const SizedBox.shrink();
+                      }
+                      return Container(
+                        height: 50,
+                        alignment: Alignment.center,
+                        color: Colors.grey[100],
+                        child: AdWidget(ad: _bannerAd!),
+                      );
+                    },
+                  ),
                 ],
               ),
             ],

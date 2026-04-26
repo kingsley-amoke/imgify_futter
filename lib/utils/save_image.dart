@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:imgify/utils/galler_saver.dart';
+import 'package:imgify/utils/gallery_saver.dart';
 
 Future<bool> saveImageToGallery(
     {required String filePath, required Uint8List image}) async {

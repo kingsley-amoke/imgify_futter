@@ -1,17 +1,21 @@
-import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:imgify/data/api_service.dart';
-import 'package:imgify/utils/save_image.dart';
-import 'package:imgify/utils/share_image.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:imgify/models/batch_models.dart';
+import 'package:imgify/providers/image_provider.dart';
+import 'package:imgify/providers/pro_status_provider.dart';
+import 'package:imgify/providers/usage_provider.dart';
+import 'package:imgify/screens/tool_scaffold.dart';
+import 'package:imgify/services/ad_service.dart';
+import 'package:imgify/services/revenue_cat_service.dart';
+import 'package:imgify/widgets/batch_button.dart';
+import 'package:imgify/widgets/convertion_settings.dart';
 import 'package:imgify/widgets/error_message.dart';
 import 'package:imgify/widgets/image_actions.dart';
 import 'package:imgify/widgets/image_preview.dart';
-import 'package:imgify/widgets/my_appbar.dart';
-import 'package:imgify/widgets/primary_button.dart';
+import 'package:imgify/widgets/paywall_dialog.dart';
 import 'package:imgify/widgets/success_message.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:imgify/widgets/usage_indicator.dart';
+import 'package:provider/provider.dart';
 
 class ConvertScreen extends StatefulWidget {
   const ConvertScreen({super.key});
@@ -21,203 +25,133 @@ class ConvertScreen extends StatefulWidget {
 }
 
 class _ConvertScreenState extends State<ConvertScreen> {
-  final ApiService _apiService = ApiService();
-  final ImagePicker _picker = ImagePicker();
+  final ScrollController _scrollController = ScrollController();
 
-  File? _selectedImage;
-  Uint8List? _processedImage;
-  String _selectedFormat = 'png';
-  bool _isProcessing = false;
+  final AdMobService _adMobService = AdMobService();
 
-  final List<String> _formats = ['jpg', 'png', 'webp', 'gif', 'bmp', 'tiff'];
+  BannerAd? _bannerAd;
 
-  Future<void> _pickImage() async {
-    try {
-      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-      if (image != null) {
-        setState(() {
-          _selectedImage = File(image.path);
-          _processedImage = null;
-        });
-      }
-    } catch (e) {
-      _showError('Failed to pick image: $e');
+  @override
+  void initState() {
+    super.initState();
+    _initializeAds();
+  }
+
+  void _initializeAds() {
+    final status = context.read<ProStatusProvider>();
+    if (!status.isPro) {
+      _bannerAd = _adMobService.createBannerAd();
+      _adMobService.loadInterstitialAd();
+
+      _adMobService.loadRewardedAd();
     }
   }
 
-  Future<void> _convertImage() async {
-    if (_selectedImage == null) return;
-
-    setState(() {
-      _isProcessing = true;
-    });
-
-    try {
-      final result =
-          await _apiService.convertImage(_selectedImage!, _selectedFormat);
-      setState(() {
-        _processedImage = result;
-        _isProcessing = false;
-      });
-      _showSuccess('Image converted successfully!');
-    } catch (e) {
-      setState(() {
-        _isProcessing = false;
-      });
-      _showError('Failed to convert image: $e');
-    }
-  }
-
-  Future<void> _saveImage() async {
-    if (_processedImage == null) return;
-
-    //TODO:Add Intersteritial Ad here before saving image
-
-    try {
-      final directory = await getTemporaryDirectory();
-      final filePath =
-          '${directory.path}/converted_${DateTime.now().millisecondsSinceEpoch}.$_selectedFormat';
-
-      final success =
-          await saveImageToGallery(filePath: filePath, image: _processedImage!);
-      if (success) {
-        _showSuccess('Image saved to gallery!');
-      }
-    } catch (e) {
-      _showError('Failed to save image: $e');
-    }
-  }
-
-  Future<void> _shareImage() async {
-    // TODO:Sharing functionality can be implemented here
-    if (_processedImage == null) return;
-    try {
-      final directory = await getTemporaryDirectory();
-      final filePath =
-          '${directory.path}/converted_${DateTime.now().millisecondsSinceEpoch}.$_selectedFormat';
-
-      final success =
-          await shareImageToApps(filePath: filePath, image: _processedImage!);
-      if (success) {
-        _showSuccess('Image shared successfully!');
-      }
-    } catch (e) {
-      _showError('Failed to share image: $e');
-    }
-  }
-
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(errorMessageSnackBar(message));
-  }
-
-  void _showSuccess(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(successMessageSnackBar(message));
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: myAppbar(context, title: 'Convert Format', centerTitle: true),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+    final usageProvider = context.watch<UsageProvider>();
+    final isProUser = context.watch<ProStatusProvider>().isPro;
+    void scrollToEnd() {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 1000),
+        curve: Curves.easeOut,
+      );
+    }
+
+    void showError(String message) {
+      ScaffoldMessenger.of(context).showSnackBar(errorMessageSnackBar(message));
+    }
+
+    void showSuccess(String message) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(successMessageSnackBar(message));
+    }
+
+    final imageProvider = context.watch<ImageProviderState>();
+    return ToolScaffold(
+      title: 'Convert',
+      hasImages: imageProvider.hasImages,
+      hasImage: imageProvider.hasImage,
+      imageCount: imageProvider.images.length,
+      operation: BatchOperation.convert,
+      onPickImages: () async {
+        await imageProvider.pickImage();
+      },
+      onPrimaryAction: () async {
+
+        if(!isProUser && usageProvider.remaining == 0) {
+          showPaywall(context);
+          return;
+        }
+
+        final result =
+            await imageProvider.convertImage(adMobService: _adMobService, isProUser: isProUser);
+        if (result) {
+          showSuccess('Successful');
+        } else {
+          showError('Something went wrong');
+        }
+        scrollToEnd();
+      },
+      primaryActionLabel: 'Convert',
+      content: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: ListView(
+          controller: _scrollController,
           children: [
-            if (_selectedImage != null)
-              ImagePreview(
-                  title: 'Original Image', image: Image.file(_selectedImage!)),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerLowest,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Select Output Format',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: _selectedFormat,
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                        hintText: 'Output Format',
-                      ),
-                      items: _formats.map((format) {
-                        return DropdownMenuItem(
-                          value: format,
-                          child: Text(format.toUpperCase()),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedFormat = value!;
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ),
+            const BatchButton(
+              operation: BatchOperation.convert,
             ),
             const SizedBox(height: 20),
-            if (_selectedImage == null)
-              PrimaryButton(
-                onTap: _pickImage,
-                child: const Text('Pick Image',
-                    style: TextStyle(color: Colors.white)),
-              )
-            else
-              PrimaryButton(
-                onTap: _isProcessing ? null : _convertImage,
-                child: _isProcessing
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.swap_horiz,
-                            color: Colors.white,
-                          ),
-                          SizedBox(width: 8),
-                          Text('Convert Image',
-                              style: TextStyle(color: Colors.white)),
-                        ],
-                      ),
+            if (imageProvider.image != null) ...[
+              ImagePreview(
+                image: Image.file(imageProvider.image!),
               ),
-            if (_processedImage != null) ...[
-              const SizedBox(height: 20),
-              Center(
-                child: ImagePreview(
-                    title: 'Converted Image',
-                    image: Image.memory(_processedImage!)),
+            ],
+            const SizedBox(height: 24),
+            const ConvertionSettings(),
+
+            const SizedBox(height: 20),
+            if (imageProvider.processedImage != null) ...[
+              const SizedBox(height: 24),
+              ImagePreview(
+                title: 'Converted',
+                image: Image.memory(imageProvider.processedImage!),
               ),
+              const SizedBox(height: 12),
               ImageActions(
-                onSave: _saveImage,
-                onPickNew: _pickImage,
-                onShare: _shareImage,
+                onSave: () async {
+
+                  final result = await imageProvider.saveImage(
+                      adMobService: _adMobService,
+                    isProUser:
+                      isProUser
+                  );
+                  if (result) {
+                    showSuccess('Successful');
+                  } else {
+                    showError('Failed');
+                  }
+                },
+                onPickNew: () {
+                  imageProvider.pickImage();
+                  imageProvider.deleteProcessed();
+                },
+                onShare: () async {
+                  final result = await imageProvider.shareImage();
+                  if (result) {
+                    showSuccess('Successful');
+                  } else {
+                    showError('Something went wrong');
+                  }
+                },
               ),
             ],
           ],

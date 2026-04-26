@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:imgify/providers/image_provider.dart';
+import 'package:provider/provider.dart';
+
+import 'connectivity_banner.dart';
 
 AppBar myAppbar(
   BuildContext context, {
   required String title,
   bool showBackIcon = true,
   bool centerTitle = false,
+  List<Widget>? actions = const [ ConnectivityBanner(),],
 }) {
   return AppBar(
     automaticallyImplyLeading: false,
@@ -22,9 +27,14 @@ AppBar myAppbar(
     ),
     leading: showBackIcon
         ? IconButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              context.read<ImageProviderState>().deleteProcessed();
+              context.read<ImageProviderState>().clear();
+              Navigator.pop(context);
+            },
             icon: const Icon(Icons.chevron_left),
           )
         : null,
+    actions: actions ,
   );
 }
